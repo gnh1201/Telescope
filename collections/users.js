@@ -1,6 +1,5 @@
 var Schema = {};
-
-Schema.User = new SimpleSchema({
+var userSchemaObject = { 
   _id: {
     type: String,
     optional: true
@@ -42,7 +41,13 @@ Schema.User = new SimpleSchema({
     optional: true,
     blackbox: true
   }
+};
+
+
+_.each(addToUserSchema, function(item){
+  userSchemaObject[item.propertyName] = item.propertySchema;
 });
+Schema.User = new SimpleSchema(userSchemaObject);
 
 // Meteor.users.attachSchema(Schema.User);
 

@@ -18,15 +18,21 @@ body{
 .outer-wrapper{
   position:relative;
 }
+
 .content-wrapper{
-  padding-bottom:20px;
+  padding:0 10px;
+  max-width: 1200px;
 }
+
 .content-wrapper{
-  padding: 0 10px;
-  max-width: 1000px;
   margin: 0 auto;
   @include small{
     overflow-x: hidden;
     overflow-y: hidden;
   }
+}
+.grid-module, .at-form{
+  background: white;
+  padding: $grid-padding;
+  margin-bottom: $grid-margin;
 }

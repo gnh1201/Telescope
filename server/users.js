@@ -1,4 +1,7 @@
 Accounts.onCreateUser(function(options, user){
+
+  // ------------------------------ Properties ------------------------------ //
+
   var userProperties = {
     profile: options.profile || {},
     karma: 0,
@@ -15,88 +18,54 @@ Accounts.onCreateUser(function(options, user){
   };
   user = _.extend(user, userProperties);
 
+  // set email on profile
   if (options.email)
     user.profile.email = options.email;
-    
+
+  // if email is set, use it to generate email hash
   if (getEmail(user))
     user.email_hash = getEmailHash(user);
-  
-  if (!user.profile.name)
-    user.profile.name = user.username;
-  
-  // set notifications default preferences
-  user.profile.notifications = {
-    users: false,
-    posts: false,
-    comments: true,
-    replies: true
-  };
+
+  // set username on profile
+  if (!user.profile.username)
+    user.profile.username = user.username;
 
   // create slug from username
   user.slug = slugify(getUserName(user));
 
-  // if this is the first user ever, make them an admin
-  if (!Meteor.users.find().count() ) {
-    setAdmin(user, true);
-  } else {
-    setAdmin(user, false);
-  }
+  // if this is not a dummy account, and is the first user ever, make them an admin
+  user.isAdmin = (!user.profile.isDummy && Meteor.users.find({'profile.isDummy': {$ne: true}}).count() === 0) ? true : false;
 
-  // give new users a few invites (default to 3)
-  user.inviteCount = getSetting('startInvitesCount', 3);
+  // ------------------------------ Callbacks ------------------------------ //
+
+  // run all post submit client callbacks on properties object successively
+  clog('// Start userCreatedCallbacks');
+  user = userCreatedCallbacks.reduce(function(result, currentFunction) {
+    clog('// Running '+currentFunction.name+'…');
+    return currentFunction(result);
+  }, user);
+  clog('// Finished userCreatedCallbacks');
+  // clog('// User object:');
+  // clog(user);
+
+  // ------------------------------ Analytics ------------------------------ //
 
   trackEvent('new user', {username: user.username, email: user.profile.email});
-
-  // if user has already filled in their email, add them to MailChimp list
-  // if(user.profile.email)
-  //   addToMailChimpList(user, false, function(error, result){
-  //     if(error){
-  //       console.log(error)
-  //     }
-  //   });
-
-  // if the new user has been invited 
-  // set her status accordingly and update invitation info
-  if(invitesEnabled() && user.profile.email){
-    var invite = Invites.findOne({ invitedUserEmail : user.profile.email });
-    if(invite){
-      var invitedBy = Meteor.users.findOne({ _id : invite.invitingUserId });
-      
-      user = _.extend(user, {
-        isInvited: true,
-        invitedBy: invitedBy._id,
-        invitedByName: getDisplayName(invitedBy)
-      });
-
-      Invites.update(invite._id, {$set : {
-        accepted : true
-      }});
-    }
-  }
-
-  // send notifications to admins
-  var admins = adminUsers();
-  admins.forEach(function(admin){
-    if(getUserSetting('notifications.users', false, admin)){
-      var emailProperties = {
-        profileUrl: getProfileUrl(user),
-        username: getUserName(user)
-      };
-      var html = getEmailTemplate('emailNewUser')(emailProperties);
-      sendEmail(getEmail(admin), 'New user account: '+getUserName(user), buildEmailTemplate(html));
-    }
-  });
 
   return user;
 });
 
 
 Meteor.methods({
-  changeEmail: function (newEmail) {
+  changeEmail: function (userId, newEmail) {
+    var user = Meteor.users.findOne(userId);
+    if (can.edit(Meteor.user(), user) !== true) {
+      throw new Meteor.Error("Permission denied");
+    }
     Meteor.users.update(
-      Meteor.userId(),
+      userId,
       {$set: {
-          emails: [{address: newEmail}],
+          emails: [{address: newEmail, verified: false}],
           email_hash: Gravatar.hash(newEmail),
           // Just in case this gets called from somewhere other than /client/views/users/user_edit.js
           "profile.email": newEmail
@@ -104,12 +73,12 @@ Meteor.methods({
       }
     );
   },
-  numberOfPostsToday: function(){
-    console.log(numberOfItemsInPast24Hours(Meteor.user(), Posts));
-  },
-  numberOfCommentsToday: function(){
-    console.log(numberOfItemsInPast24Hours(Meteor.user(), Comments));
-  },
+  // numberOfPostsToday: function(){
+  //   console.log(numberOfItemsInPast24Hours(Meteor.user(), Posts));
+  // },
+  // numberOfCommentsToday: function(){
+  //   console.log(numberOfItemsInPast24Hours(Meteor.user(), Comments));
+  // },
   testBuffer: function(){
     // TODO
   },

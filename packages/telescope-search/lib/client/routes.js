@@ -1,16 +1,27 @@
-adminNav.push({
-  route: 'searchLogs',
-  label: 'Search Logs'
-});
-
-
 Meteor.startup(function () {
 
   PostsSearchController = PostsListController.extend({
     view: 'search',
+    showViewsNav: false,
+    getTitle: function() {
+      return i18n.t("Search") + ' - ' + getSetting('title', "Telescope");
+    },
+    getDescription: function() {
+      return getSetting('description');
+    },
     onBeforeAction: function() {
-      if ("q" in this.params) {
-        Session.set("searchQuery", this.params.q);
+      var query = this.params.query;
+      if ('q' in query) {
+        // if search box has 'empty' class, that means user just deleted last character in search keyword
+        // but router hasn't updated url, so params.query still has '?q=<LAST CHARACTER>'
+        // if we set searchQuery in this case, user will see last character pops up again unexpectedly
+        // so add this check to fix the bug. issue #825
+        if (!$('.search').hasClass('empty'))  {
+          Session.set('searchQuery', query.q);
+        }
+        if (query.q) {
+          Meteor.call('logSearch', query.q)
+        }
       }
       this.next();
     }
@@ -22,12 +33,13 @@ Meteor.startup(function () {
 
   Router.route('/search/:limit?', {
     name: 'search',
-    controller: PostsSearchController    
+    controller: PostsSearchController
   });
 
   // Search Logs
 
   Router.route('/logs/:limit?', {
+    controller: AdminController,
     name: 'searchLogs',
     waitOn: function () {
       var limit = this.params.limit || 100;

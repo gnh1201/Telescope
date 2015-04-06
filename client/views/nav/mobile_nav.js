@@ -1,21 +1,15 @@
 Template[getTemplate('mobile_nav')].helpers({
-  primaryNav: function () {
-    return primaryNav;
+  mobileNav: function () {
+    return _.sortBy(mobileNav, 'order');
   },
-  secondaryNav: function () {
-    return secondaryNav;
+  logoTemplate: function () {
+    return getTemplate('logo');
   },
   getTemplate: function () {
-    return getTemplate(this);
+    return getTemplate(this.template);
   },
-  canPost: function(){
-    return canPost(Meteor.user());
-  },
-  requirePostsApproval: function(){
-    return getSetting('requirePostsApproval');
-  },
-  userMenu: function () {
-    return getTemplate('userMenu');
+  mobileContext: function () {
+    return {mobile: true};
   }
 });
 
@@ -24,10 +18,6 @@ Template[getTemplate('mobile_nav')].events({
     $('body').toggleClass('mobile-nav-open');
   }
 });
-
-Template[getTemplate('mobile_nav')].rendered = function () {
-  $('.mobile-nav .dropdown-menu').hide();
-};
 
 Template[getTemplate('mobile_nav')].events({
   'click .dropdown-top-level': function (e) {
